@@ -1,0 +1,59 @@
+name: Refresh Feed
+
+on:
+  # The app repository publishes every build of main to a rolling release, so a
+  # few polls a day are enough. Add a FEED_DISPATCH_TOKEN to the app repository
+  # to refresh immediately instead (see README).
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      source_tag:
+        description: Release tag in CasperOng/FrameExtractionTool to publish
+        required: false
+        default: latest
+  repository_dispatch:
+    types: [frame-extractor-build]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-feed
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Publish the newest unsigned build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Fetch the Newest Build
+      id: fetch
+      env:
+        SOURCE_TAG: ${{ github.event.client_payload.source_tag || inputs.source_tag || 'latest' }}
+      run: python3 scripts/update_feed.py
+
+    - name: Commit the Feed
+      if: steps.fetch.outputs.changed == 'true'
+      run: |
+        git config user.name "frame-extractor-feed-bot"
+        git config user.email "frame-extractor-feed-bot@users.noreply.github.com"
+        git add ipas apps.json LATEST-BUILD.md
+        git commit -m "chore(feed): publish v${{ steps.fetch.outputs.version }} (build ${{ steps.fetch.outputs.build }})"
+        git push
+
+    - name: Summarise
+      run: |
+        {
+          echo "## Frame Extractor feed"
+          echo
+          echo "| | |"
+          echo "| --- | --- |"
+          echo "| Version | ${{ steps.fetch.outputs.version }} |"
+          echo "| Build | ${{ steps.fetch.outputs.build }} |"
+          echo "| Feed updated | ${{ steps.fetch.outputs.changed }} |"
+        } >> "$GITHUB_STEP_SUMMARY"
