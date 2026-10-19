@@ -22,11 +22,17 @@ The feed always points at the newest build the app repository has published.
 | Path | Purpose |
 | --- | --- |
 | `apps.json` | The Feather source itself |
-| `ipas/FrameExtractionTool-unsigned.ipa` | The newest unsigned build |
+| `ipas/FrameExtractionTool-<version>-<build>-<sha>.ipa` | The newest unsigned build |
 | `icons/FrameExtractor.png` | Source and app icon |
 | `LATEST-BUILD.md` | Version, build, size and SHA-256 of the IPA |
 | `scripts/update_feed.py` | Downloads the newest IPA and rewrites the files above |
 | `.github/workflows/refresh.yml` | Runs that script on a schedule |
+
+Every build gets its own file name. The path is unique per build on purpose:
+`raw.githubusercontent.com` caches by path and was still serving the previous
+IPA for a cache-busting query string, which could hand Feather an IPA that did
+not match the version in `apps.json`. Older IPAs are deleted as each new one
+arrives, so the repository holds exactly one build.
 
 ## How it updates itself
 

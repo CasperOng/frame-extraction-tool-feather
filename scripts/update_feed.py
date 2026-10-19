@@ -39,7 +39,7 @@ FEED_OWNER = os.environ.get("FEED_OWNER", "CasperOng")
 FEED_REPO = os.environ.get("FEED_REPO", "frame-extraction-tool-feather")
 FEED_BRANCH = os.environ.get("FEED_BRANCH", "main")
 
-IPA_PATH = ROOT / "ipas" / SOURCE_ASSET
+IPA_DIR = ROOT / "ipas"
 FEED_PATH = ROOT / "apps.json"
 LATEST_PATH = ROOT / "LATEST-BUILD.md"
 
@@ -139,7 +139,17 @@ def current_version_entry() -> dict | None:
         return None
 
 
-def build_feed(info: dict, size: int, digest: str, built_at: datetime) -> dict:
+def ipa_file_name(info: dict, digest: str) -> str:
+    """A file name that is unique per build.
+
+    raw.githubusercontent.com caches by path and ignored the cache-busting query
+    string the feed used to rely on, so a new build can be served from a stale
+    cache entry. Giving every build its own path removes the ambiguity.
+    """
+    return f"FrameExtractionTool-{info['version']}-{info['build']}-{digest[:8]}.ipa"
+
+
+def build_feed(info: dict, size: int, digest: str, built_at: datetime, ipa_name: str) -> dict:
     icon_url = f"{RAW_BASE}/icons/FrameExtractor.png"
     version_entry = {
         "version": info["version"],
@@ -148,8 +158,7 @@ def build_feed(info: dict, size: int, digest: str, built_at: datetime) -> dict:
         "localizedDescription": (
             f"Version {info['version']} (build {info['build']}) — unsigned, ready to sign with Feather."
         ),
-        # The query string keeps caches from serving an older IPA for this version.
-        "downloadURL": f"{RAW_BASE}/ipas/{SOURCE_ASSET}?version={info['version']}&build={info['build']}",
+        "downloadURL": f"{RAW_BASE}/ipas/{ipa_name}",
         "size": size,
         "sha256": digest,
         "minOSVersion": info["minimumOSVersion"],
@@ -181,7 +190,7 @@ def build_feed(info: dict, size: int, digest: str, built_at: datetime) -> dict:
     }
 
 
-def build_latest_markdown(info: dict, size: int, digest: str, built_at: datetime, source_url: str) -> str:
+def build_latest_markdown(info: dict, size: int, digest: str, built_at: datetime, source_url: str, ipa_name: str) -> str:
     return f"""# Latest build
 
 | | |
@@ -194,7 +203,7 @@ def build_latest_markdown(info: dict, size: int, digest: str, built_at: datetime
 | **Published** | {built_at.strftime('%Y-%m-%d %H:%M UTC')} |
 | **Source** | [FrameExtractionTool](https://github.com/{SOURCE_REPO}) |
 
-Download: [ipas/{SOURCE_ASSET}](ipas/{SOURCE_ASSET}) — taken from {source_url}
+Download: [ipas/{ipa_name}](ipas/{ipa_name}) — taken from {source_url}
 
 This file is rewritten by `.github/workflows/refresh.yml`; do not edit it by hand.
 """
@@ -242,15 +251,22 @@ def main() -> int:
         set_output("build", info["build"])
         return 0
 
-    IPA_PATH.parent.mkdir(parents=True, exist_ok=True)
-    IPA_PATH.write_bytes(ipa)
-    FEED_PATH.write_text(json.dumps(build_feed(info, len(ipa), digest, built_at), indent=2) + "\n")
-    LATEST_PATH.write_text(build_latest_markdown(info, len(ipa), digest, built_at, source_url))
+    ipa_name = ipa_file_name(info, digest)
+    IPA_DIR.mkdir(parents=True, exist_ok=True)
+    (IPA_DIR / ipa_name).write_bytes(ipa)
+    # One build at a time: drop the previous IPA so the repository stays small.
+    for existing in IPA_DIR.glob("FrameExtractionTool-*.ipa"):
+        if existing.name != ipa_name:
+            existing.unlink()
+            log(f"Removed {existing.relative_to(ROOT)}")
+
+    FEED_PATH.write_text(json.dumps(build_feed(info, len(ipa), digest, built_at, ipa_name), indent=2) + "\n")
+    LATEST_PATH.write_text(build_latest_markdown(info, len(ipa), digest, built_at, source_url, ipa_name))
 
     set_output("changed", "true")
     set_output("version", info["version"])
     set_output("build", info["build"])
-    log(f"Wrote {IPA_PATH.relative_to(ROOT)}, {FEED_PATH.name} and {LATEST_PATH.name}")
+    log(f"Wrote ipas/{ipa_name}, {FEED_PATH.name} and {LATEST_PATH.name}")
     return 0
 
 
