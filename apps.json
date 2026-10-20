@@ -24,12 +24,12 @@
       "versions": [
         {
           "version": "1.6.0",
-          "buildVersion": "86",
+          "buildVersion": "87",
           "date": "2026-10-20",
-          "localizedDescription": "Version 1.6.0 (build 86) \u2014 unsigned, ready to sign with Feather.",
-          "downloadURL": "https://raw.githubusercontent.com/CasperOng/frame-extraction-tool-feather/main/ipas/FrameExtractionTool-1.6.0-86-58f60f25.ipa",
-          "size": 1294872,
-          "sha256": "58f60f2571fabbbcb1ec43237b9bba302f2373c27f4016b834c4aa28a4b78212",
+          "localizedDescription": "Version 1.6.0 (build 87) \u2014 unsigned, ready to sign with Feather.",
+          "downloadURL": "https://raw.githubusercontent.com/CasperOng/frame-extraction-tool-feather/main/ipas/FrameExtractionTool-1.6.0-87-01c251a1.ipa",
+          "size": 1294873,
+          "sha256": "01c251a1f7d7fcd174390747b1ddfec69115f21b7d89b0c2c193e2773529b802",
           "minOSVersion": "17"
         }
       ]
